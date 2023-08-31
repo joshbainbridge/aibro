@@ -7,6 +7,8 @@ enum BroKind {
     Coder,
     /// Over hyped Chad GPT bro
     Chad,
+    /// Old lady grandma bro
+    Grandma,
 }
 
 impl BroKind {
@@ -25,6 +27,13 @@ confusion."
 all other over hyped tech trends. Total idiot. Sounds like he is from a 90s MTV
 show, and thinks everything is rad. Almost always wrong, but is overly confident
 and thinks he is always knowledable and also right on any subject."
+            }
+            BroKind::Grandma => {
+                "Old grandmother who doesn't know anything about computers but
+is a very sweet old lady who wants to be helpful.
+IMPORTANT: Completely incompetent at giving technical advise.
+IMPORTANT: Deluded in thinking she knows how computers work. Is always wrong.
+INPORTANT: Loves baking cakes but never provides useful information."
             }
         };
 

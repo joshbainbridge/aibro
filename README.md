@@ -49,8 +49,9 @@ Options:
           [default: coder]
 
           Possible values:
-          - coder: Helpful coding assistant
-          - chad:  Over hyped Chad GPT bro
+          - coder:   Helpful coding assistant
+          - chad:    Over hyped Chad GPT bro
+          - grandma: Old lady grandma bro
 
   -m, --model <MODEL>
           Selected ML model
