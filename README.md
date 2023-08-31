@@ -1,16 +1,22 @@
 # AiBro
 
 AiBro is your own little coding bro, immersed in the world of AI, crypto, and
-all other over hyped tech trends. As a CLI tool you can pipe it code and then
-ask it to make changes, add documentation, etc.
+all other types of over hyped tech trends!
 
-## Requirements
+You can pipe it code and request changes, add documentation, etc. Useful for
+editors that support piping of text like [Helix](https://helix-editor.com).
 
-This calls the [OpenAI API](https://platform.openai.com/docs/api-reference)
-HTTP interface and requires the following enviroment variables:
+[asciinema recording]
 
-- `OPENAI_API_KEY`: API key for authentication. Create an OpenAI account and add
-a payment method [here](https://platform.openai.com/account/api-keys).
+This will call the [OpenAI API](https://platform.openai.com/docs/api-reference)
+HTTP interface and so will require an account on their platform.
+
+## Environment variables:
+
+- `OPENAI_API_KEY`: API key for authentication. Please create an OpenAI account
+and add a payment method [here](https://platform.openai.com/account/api-keys).
+- `AIBRO_DEFAULT_PROMPT`: Optional default fallback prompt for common requests
+when piping in code. For example 'return code with documentation'.
 
 ## Installation
 
@@ -29,19 +35,43 @@ cargo install --path .
 
 ## Usage
 
-Print about information using:
+````
+Usage: aibro [OPTIONS] [PROMPT]...
 
-```bash
-aibro --help
-```
+Arguments:
+  [PROMPT]...
+          Input prompt [override: $AIBRO_DEFAULT_PROMPT]
 
-As an example, input can be provided using a string of arguments passed to the
-command, stdin over a pipe, or both:
+Options:
+  -b, --bro <BRO>
+          Selected aibro persona
+          
+          [default: coder]
 
-```bash
-aibro write me a ray trace function in cpp > ray_trace.cpp
-```
+          Possible values:
+          - coder: Helpful coding assistant
+          - chad:  Over hyped Chad GPT bro
 
-```bash
-cat ray_trace.cpp | aibro add doxygen style comments to code
-```
+  -m, --model <MODEL>
+          Selected ML model
+          
+          [default: gpt3]
+
+          Possible values:
+          - gpt3: GPT 3.5 turbo model
+          - gpt4: GPT 4.0 model
+
+  -t, --temperature <TEMPERATURE>
+          Model temperature
+          
+          [default: 0.3]
+
+  -a, --auth <AUTH>
+          Authentication key [override: $OPENAI_API_KEY]
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
+````

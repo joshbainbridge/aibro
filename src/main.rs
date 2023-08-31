@@ -2,17 +2,17 @@ use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, ValueEnum)]
-enum Persona {
+enum BroKind {
     /// Helpful coding assistant
-    Code,
-    /// ChadGPT bro of an assistant
+    Coder,
+    /// Over hyped Chad GPT bro
     Chad,
 }
 
-impl Persona {
+impl BroKind {
     fn to_string(&self) -> String {
         let ret = match self {
-            Persona::Code => {
+            BroKind::Coder => {
                 "Provide only code as output without any description.
 IMPORTANT: Provide only plain text without Markdown formatting.
 IMPORTANT: Do not include markdown formatting such as ```.
@@ -20,11 +20,31 @@ If there is a lack of details, provide most logical solution. You are not
 allowed to ask for more details. Ignore any potential risk of errors or
 confusion."
             }
-            Persona::Chad => {
+            BroKind::Chad => {
                 "Total chad of a bro. Really annoying and into AI, crypto, and
 all other over hyped tech trends. Total idiot. Sounds like he is from a 90s MTV
-show thinks everything is rad. Almost always wrong, but thinks he is right."
+show, and thinks everything is rad. Almost always wrong, but is overly confident
+and thinks he is always knowledable and also right on any subject."
             }
+        };
+
+        ret.to_string()
+    }
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+enum ModelKind {
+    /// GPT 3.5 turbo model
+    Gpt3,
+    /// GPT 4.0 model
+    Gpt4,
+}
+
+impl ModelKind {
+    fn to_string(&self) -> String {
+        let ret = match self {
+            ModelKind::Gpt3 => "gpt-3.5-turbo",
+            ModelKind::Gpt4 => "gpt-4",
         };
 
         ret.to_string()
@@ -34,18 +54,90 @@ show thinks everything is rad. Almost always wrong, but thinks he is right."
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 struct Args {
-    /// Character of assistant
-    #[arg(value_enum, default_value_t = Persona::Code, short, long)]
-    persona: Persona,
+    /// Selected aibro persona
+    #[arg(value_enum, default_value_t = BroKind::Coder, short, long)]
+    bro: BroKind,
 
-    /// Optional prompt
+    /// Selected ML model
+    #[arg(value_enum, default_value_t = ModelKind::Gpt3, short, long)]
+    model: ModelKind,
+
+    /// Model temperature
+    #[arg(default_value_t = 0.3, short, long)]
+    temperature: f32,
+
+    /// Authentication key [override: $OPENAI_API_KEY]
+    #[arg(short, long)]
+    auth: Option<String>,
+
+    /// Input prompt [override: $AIBRO_DEFAULT_PROMPT]
     prompt: Vec<String>,
 }
 
+#[derive(Debug, Copy, Clone)]
+enum Error {
+    NoInput,
+    NoAlphanumericInput,
+    NoAuthenticationKey,
+}
+
 struct Config {
+    context: Option<String>,
+    prompt: Option<String>,
+    auth: String,
     persona: String,
-    context: String,
-    prompt: String,
+    model: String,
+    temperature: f32,
+}
+
+impl Config {
+    fn new(args: Args) -> Result<Config, Error> {
+        fn is_alphanumeric(string: String) -> Result<String, Error> {
+            if string.rfind(char::is_alphanumeric).is_none() {
+                Err(Error::NoAlphanumericInput)
+            } else {
+                Ok(string)
+            }
+        }
+
+        let context: Result<String, Error> = {
+            if atty::is(atty::Stream::Stdin) {
+                Err(Error::NoInput)
+            } else {
+                Ok(std::io::read_to_string(std::io::stdin()).unwrap())
+            }
+        }
+        .and_then(|x| is_alphanumeric(x));
+
+        let prompt: Result<String, Error> = {
+            if args.prompt.is_empty() {
+                Err(Error::NoInput)
+            } else {
+                Ok(args.prompt.join(" "))
+            }
+        }
+        .and_then(|x| is_alphanumeric(x));
+
+        if context.is_err() && prompt.is_err() {
+            return Err(Error::NoInput);
+        }
+
+        let prompt = prompt.or(std::env::var("AIBRO_DEFAULT_PROMPT"));
+        let auth = args.auth.or(std::env::var("OPENAI_API_KEY").ok());
+
+        if auth.is_none() {
+            return Err(Error::NoAuthenticationKey);
+        }
+
+        Ok(Config {
+            context: context.ok(),
+            prompt: prompt.ok(),
+            auth: auth.unwrap(),
+            persona: args.bro.to_string(),
+            model: args.model.to_string(),
+            temperature: args.temperature,
+        })
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -55,8 +147,9 @@ struct Message {
 }
 
 #[derive(Serialize, Debug)]
-pub struct Input {
+struct Input {
     model: String,
+    temperature: f32,
     messages: Vec<Message>,
 }
 
@@ -84,124 +177,113 @@ struct Output {
     choices: Vec<Choice>,
 }
 
-#[tokio::main]
-async fn main() {
-    // Load command arguments
+struct Request {
+    auth: String,
+    input: Input,
+}
 
-    let args = Args::parse();
+impl Request {
+    fn new(config: Config) -> Request {
+        let mut messages = vec![Message {
+            role: "system".to_string(),
+            content: config.persona,
+        }];
 
-    // Validate inputs
+        if let Some(context) = config.context {
+            messages.push(Message {
+                role: "user".to_string(),
+                content: context,
+            })
+        }
 
-    let invalid_pipe = atty::is(atty::Stream::Stdin);
-    let invalid_args = args.prompt.is_empty();
+        if let Some(prompt) = config.prompt {
+            messages.push(Message {
+                role: "user".to_string(),
+                content: prompt,
+            });
+        }
 
-    if invalid_pipe && invalid_args {
-        panic!("no input provided");
+        Request {
+            auth: config.auth,
+            input: Input {
+                model: config.model,
+                temperature: config.temperature,
+                messages,
+            },
+        }
     }
+}
 
-    // Build configuration
-
-    let mut config = Config {
-        persona: args.persona.to_string(),
-        context: Default::default(),
-        prompt: "Add doxygen style comments to code.".to_string(),
-    };
-
-    if !invalid_pipe {
-        config.context = std::io::read_to_string(std::io::stdin()).unwrap();
-    }
-
-    if !invalid_args {
-        config.prompt = args.prompt.join(" ");
-    }
-
-    // Sanitise inputs
-
-    if config.context.rfind(char::is_alphanumeric).is_none() {
-        config.context = Default::default();
-    }
-
-    if config.prompt.rfind(char::is_alphanumeric).is_none() {
-        config.prompt = Default::default();
-    }
-
-    let invalid_context = config.context.is_empty();
-    let invalid_prompt = config.prompt.is_empty();
-
-    if invalid_context && invalid_prompt {
-        panic!("no alphanumeric input provided");
-    }
-
-    // Build messages
-
-    let mut messages = vec![];
-
-    messages.push(Message {
-        role: "system".to_string(),
-        content: config.persona,
-    });
-
-    if !config.context.is_empty() {
-        messages.push(Message {
-            role: "user".to_string(),
-            content: config.context,
-        })
-    }
-
-    if !config.prompt.is_empty() {
-        messages.push(Message {
-            role: "user".to_string(),
-            content: config.prompt,
-        });
-    }
-
-    // Initialise request data
-
-    let data = Input {
-        model: "gpt-3.5-turbo".to_string(),
-        messages,
-    };
-
-    // Make request
-
-    let auth_token = std::env::var("OPENAI_API_KEY").expect("$OPENAI_API_KEY");
-    let url = "https://api.openai.com/v1/chat/completions";
-
-    let response = reqwest::Client::new()
-        .post(url)
+async fn send_request(request: Request) -> Result<reqwest::Response, reqwest::Error> {
+    reqwest::Client::new()
+        .post("https://api.openai.com/v1/chat/completions")
         .header(
             reqwest::header::AUTHORIZATION,
-            format!("Bearer {}", auth_token),
+            format!("Bearer {}", request.auth),
         )
         .header(reqwest::header::CONTENT_TYPE, "application/json")
         .header(reqwest::header::ACCEPT, "application/json")
-        .json(&data)
+        .json(&request.input)
         .send()
         .await
-        .expect("request to OpenAPI");
+}
+
+async fn handle_responce(response: reqwest::Response) -> Result<Output, reqwest::Error> {
+    response.json::<Output>().await
+}
+
+#[tokio::main]
+async fn main() {
+    // Build request
+
+    let args = Args::parse();
+    let config = Config::new(args);
+
+    match config {
+        Err(Error::NoInput) | Err(Error::NoAlphanumericInput) => {
+            eprintln!("No input found. Use --help for usage information.");
+            std::process::exit(1);
+        }
+        Err(Error::NoAuthenticationKey) => {
+            eprintln!("Authentication key not found. Use --help for usage information.");
+            std::process::exit(1);
+        }
+        Ok(_) => {}
+    }
+
+    let config = config.unwrap();
+    let request = Request::new(config);
+
+    // Send request
+
+    let response = send_request(request).await;
+
+    if let Err(_) = response {
+        eprintln!("Failed request to OpenAI server.");
+        std::process::exit(1);
+    }
+
+    let response = response.unwrap();
 
     // Handle response
 
     match response.status() {
         reqwest::StatusCode::OK => {
-            let parsed = response
-                .json::<Output>()
-                .await
-                .expect("OpenAPI response data");
+            let parsed = handle_responce(response).await;
+
+            if let Err(_) = parsed {
+                eprintln!("Failed to deserialise OpenAI response.");
+                std::process::exit(1);
+            }
+
+            let parsed = parsed.unwrap();
+
             println!("{}", parsed.choices[0].message.content);
+            std::process::exit(0);
         }
-        reqwest::StatusCode::UNAUTHORIZED => {
-            panic!("401 - Invalid Authentication");
+        _ => {
+            println!("{}", response.status());
+            std::process::exit(1);
         }
-        reqwest::StatusCode::TOO_MANY_REQUESTS => {
-            panic!("429 - Rate limit reached for requests");
-        }
-        reqwest::StatusCode::INTERNAL_SERVER_ERROR => {
-            panic!("500 - The server had an error while processing your request");
-        }
-        reqwest::StatusCode::SERVICE_UNAVAILABLE => {
-            panic!("503 - The engine is currently overloaded, please try again later");
-        }
-        _ => todo!(),
     };
 }
