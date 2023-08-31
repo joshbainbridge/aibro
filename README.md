@@ -1,20 +1,20 @@
 # AiBro
 
-AiBro is your own little coding bro, immersed in the world of AI, crypto, and
-all other types of over hyped tech trends!
-
-You can pipe it code and request changes, add documentation, etc. Useful for
-editors that support piping of text like [Helix](https://helix-editor.com).
+This is your own little coding bro, immersed in the world of AI, crypto, and all
+other types of over hyped tech trends. You can pipe it code and request changes,
+add documentation, etc. This can be useful when combined with editors that
+support piping text like [Helix](https://helix-editor.com).
 
 [asciinema recording]
 
-This will call the [OpenAI API](https://platform.openai.com/docs/api-reference)
-HTTP interface and so will require an account on their platform.
+AiBro uses the [OpenAI API](https://platform.openai.com/docs/api-reference)
+HTTP interface to answere queries. You will need to setup an OpenAI account and
+acquire an authentication key before getting a responce.
 
 ## Environment variables:
 
-- `OPENAI_API_KEY`: API key for authentication. Please create an OpenAI account
-and add a payment method [here](https://platform.openai.com/account/api-keys).
+- `OPENAI_API_KEY`: API key for authentication. Alternatively this can be set or
+overriden using a command argument. See the [usage](#usage) section below.
 - `AIBRO_DEFAULT_PROMPT`: Optional default fallback prompt for common requests
 when piping in code. For example 'return code with documentation'.
 
