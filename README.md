@@ -5,7 +5,7 @@ other types of over hyped tech trends. You can pipe it code and request changes,
 add documentation, etc. This can be useful when combined with editors that
 support piping text like [Helix](https://helix-editor.com).
 
-[asciinema recording]
+[![asciicast](https://asciinema.org/a/605870.svg)](https://asciinema.org/a/605870)
 
 AiBro uses the [OpenAI API](https://platform.openai.com/docs/api-reference)
 HTTP interface to answere queries. You will need to setup an OpenAI account and
