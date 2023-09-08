@@ -14,7 +14,15 @@
       {
         defaultPackage = naersk-lib.buildPackage ./.;
         devShell = with pkgs; mkShell {
-          buildInputs = [ cargo rustc rustfmt rust-analyzer darwin.apple_sdk.frameworks.Security iconv ];
+          buildInputs = [
+            cargo
+            rustc
+            rustfmt
+            rust-analyzer
+            clippy
+            darwin.apple_sdk.frameworks.Security
+            iconv
+          ];
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
         };
       });

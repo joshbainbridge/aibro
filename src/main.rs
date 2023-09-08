@@ -11,33 +11,34 @@ enum BroKind {
     Grandma,
 }
 
-impl BroKind {
-    fn to_string(&self) -> String {
-        let ret = match self {
-            BroKind::Coder => {
+impl std::fmt::Display for BroKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            BroKind::Coder => write!(
+                f,
                 "Provide only code as output without any description.
 IMPORTANT: Provide only plain text without Markdown formatting.
 IMPORTANT: Do not include markdown formatting such as ```.
 If there is a lack of details, provide most logical solution. You are not
 allowed to ask for more details. Ignore any potential risk of errors or
 confusion."
-            }
-            BroKind::Chad => {
+            ),
+            BroKind::Chad => write!(
+                f,
                 "Total chad of a bro. Really annoying and into AI, crypto, and
 all other over hyped tech trends. Total idiot. Sounds like he is from a 90s MTV
 show, and thinks everything is rad. Almost always wrong, but is overly confident
 and thinks he is always knowledable and also right on any subject."
-            }
-            BroKind::Grandma => {
+            ),
+            BroKind::Grandma => write!(
+                f,
                 "Old grandmother who doesn't know anything about computers but
 is a very sweet old lady who wants to be helpful.
 IMPORTANT: Completely incompetent at giving technical advise.
 IMPORTANT: Deluded in thinking she knows how computers work. Is always wrong.
 INPORTANT: Loves baking cakes but never provides useful information."
-            }
-        };
-
-        ret.to_string()
+            ),
+        }
     }
 }
 
@@ -49,14 +50,12 @@ enum ModelKind {
     Gpt4,
 }
 
-impl ModelKind {
-    fn to_string(&self) -> String {
-        let ret = match self {
-            ModelKind::Gpt3 => "gpt-3.5-turbo",
-            ModelKind::Gpt4 => "gpt-4",
-        };
-
-        ret.to_string()
+impl std::fmt::Display for ModelKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ModelKind::Gpt3 => write!(f, "gpt-3.5-turbo"),
+            ModelKind::Gpt4 => write!(f, "gpt-4"),
+        }
     }
 }
 
@@ -85,9 +84,9 @@ struct Args {
 
 #[derive(Debug, Copy, Clone)]
 enum Error {
-    NoInput,
-    NoAlphanumericInput,
-    NoAuthenticationKey,
+    Input,
+    AlphanumericInput,
+    AuthenticationKey,
 }
 
 struct Config {
@@ -103,7 +102,7 @@ impl Config {
     fn new(args: Args) -> Result<Config, Error> {
         fn is_alphanumeric(string: String) -> Result<String, Error> {
             if string.rfind(char::is_alphanumeric).is_none() {
-                Err(Error::NoAlphanumericInput)
+                Err(Error::AlphanumericInput)
             } else {
                 Ok(string)
             }
@@ -111,31 +110,31 @@ impl Config {
 
         let context: Result<String, Error> = {
             if atty::is(atty::Stream::Stdin) {
-                Err(Error::NoInput)
+                Err(Error::Input)
             } else {
                 Ok(std::io::read_to_string(std::io::stdin()).unwrap())
             }
         }
-        .and_then(|x| is_alphanumeric(x));
+        .and_then(is_alphanumeric);
 
         let prompt: Result<String, Error> = {
             if args.prompt.is_empty() {
-                Err(Error::NoInput)
+                Err(Error::Input)
             } else {
                 Ok(args.prompt.join(" "))
             }
         }
-        .and_then(|x| is_alphanumeric(x));
+        .and_then(is_alphanumeric);
 
         if context.is_err() && prompt.is_err() {
-            return Err(Error::NoInput);
+            return Err(Error::Input);
         }
 
         let prompt = prompt.or(std::env::var("AIBRO_DEFAULT_PROMPT"));
         let auth = args.auth.or(std::env::var("OPENAI_API_KEY").ok());
 
         if auth.is_none() {
-            return Err(Error::NoAuthenticationKey);
+            return Err(Error::AuthenticationKey);
         }
 
         Ok(Config {
@@ -249,11 +248,11 @@ async fn main() {
     let config = Config::new(args);
 
     match config {
-        Err(Error::NoInput) | Err(Error::NoAlphanumericInput) => {
+        Err(Error::Input) | Err(Error::AlphanumericInput) => {
             eprintln!("No input found. Use --help for usage information.");
             std::process::exit(1);
         }
-        Err(Error::NoAuthenticationKey) => {
+        Err(Error::AuthenticationKey) => {
             eprintln!("Authentication key not found. Use --help for usage information.");
             std::process::exit(1);
         }
@@ -267,7 +266,7 @@ async fn main() {
 
     let response = send_request(request).await;
 
-    if let Err(_) = response {
+    if response.is_err() {
         eprintln!("Failed request to OpenAI server.");
         std::process::exit(1);
     }
@@ -280,7 +279,7 @@ async fn main() {
         reqwest::StatusCode::OK => {
             let parsed = handle_responce(response).await;
 
-            if let Err(_) = parsed {
+            if parsed.is_err() {
                 eprintln!("Failed to deserialise OpenAI response.");
                 std::process::exit(1);
             }
