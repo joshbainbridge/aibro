@@ -21,6 +21,7 @@
             rust-analyzer
             clippy
             darwin.apple_sdk.frameworks.Security
+            darwin.apple_sdk.frameworks.SystemConfiguration
             iconv
           ];
           RUST_SRC_PATH = rustPlatform.rustLibSrc;

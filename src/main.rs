@@ -54,7 +54,7 @@ impl std::fmt::Display for ModelKind {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             ModelKind::Gpt3 => write!(f, "gpt-3.5-turbo"),
-            ModelKind::Gpt4 => write!(f, "gpt-4"),
+            ModelKind::Gpt4 => write!(f, "gpt-4-1106-preview"),
         }
     }
 }
@@ -67,12 +67,16 @@ struct Args {
     bro: BroKind,
 
     /// Selected ML model
-    #[arg(value_enum, default_value_t = ModelKind::Gpt3, short, long)]
+    #[arg(value_enum, default_value_t = ModelKind::Gpt4, short, long)]
     model: ModelKind,
 
     /// Model temperature
-    #[arg(default_value_t = 0.3, short, long)]
+    #[arg(default_value_t = 1.0, short, long)]
     temperature: f32,
+
+    /// Random seed value
+    #[arg(default_value_t = 0, short, long)]
+    seed: i32,
 
     /// Authentication key [override: $OPENAI_API_KEY]
     #[arg(short, long)]
@@ -96,6 +100,7 @@ struct Config {
     persona: String,
     model: String,
     temperature: f32,
+    seed: i32,
 }
 
 impl Config {
@@ -144,6 +149,7 @@ impl Config {
             persona: args.bro.to_string(),
             model: args.model.to_string(),
             temperature: args.temperature,
+            seed: args.seed,
         })
     }
 }
@@ -158,6 +164,7 @@ struct Message {
 struct Input {
     model: String,
     temperature: f32,
+    seed: i32,
     messages: Vec<Message>,
 }
 
@@ -216,6 +223,7 @@ impl Request {
             input: Input {
                 model: config.model,
                 temperature: config.temperature,
+                seed: config.seed,
                 messages,
             },
         }
